@@ -4,7 +4,7 @@ go 1.23
 
 toolchain go1.24.7
 
-replace github.com/coinbase/kryptology => ../kryptology
+replace github.com/coinbase/kryptology => github.com/permissionlessweb/kryptology v0.0.0-20260120180623-bb95dcb5aeea
 
 require (
 	cosmossdk.io/log v1.3.1
