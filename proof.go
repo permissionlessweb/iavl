@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/cosmos/iavl/hash"
+
 	hexbytes "github.com/cosmos/iavl/internal/bytes"
 	"github.com/cosmos/iavl/internal/encoding"
 )
@@ -60,8 +62,35 @@ func (pin ProofInnerNode) stringIndented(indent string) string {
 		indent)
 }
 
+// Hash computes the hash of this inner node using SHA256 (legacy method).
 func (pin ProofInnerNode) Hash(childHash []byte) ([]byte, error) {
-	hasher := sha256.New()
+	return pin.HashWithHasher(childHash, nil)
+}
+
+// HashWithHasher computes the hash of this inner node using the provided hasher.
+// If hasher is nil or is SHA256, uses legacy SHA256 hashing.
+func (pin ProofInnerNode) HashWithHasher(childHash []byte, hasher hash.Hasher) ([]byte, error) {
+	if len(pin.Left) > 0 && len(pin.Right) > 0 {
+		return nil, errors.New("both left and right child hashes are set")
+	}
+
+	// Determine left and right hashes
+	var leftHash, rightHash []byte
+	if len(pin.Left) == 0 {
+		leftHash = childHash
+		rightHash = pin.Right
+	} else {
+		leftHash = pin.Left
+		rightHash = childHash
+	}
+
+	// Use configurable hasher if provided and not SHA256
+	if hasher != nil && hasher.Algorithm() != hash.SHA256 {
+		return hasher.HashInner(pin.Height, pin.Size, pin.Version, leftHash, rightHash), nil
+	}
+
+	// Legacy SHA256 hashing
+	sha256Hasher := sha256.New()
 
 	buf := bufPool.Get().(*bytes.Buffer)
 	buf.Reset()
@@ -74,36 +103,22 @@ func (pin ProofInnerNode) Hash(childHash []byte) ([]byte, error) {
 	if err == nil {
 		err = encoding.EncodeVarint(buf, pin.Version)
 	}
-
-	if len(pin.Left) > 0 && len(pin.Right) > 0 {
-		return nil, errors.New("both left and right child hashes are set")
+	if err == nil {
+		err = encoding.EncodeBytes(buf, leftHash)
 	}
-
-	if len(pin.Left) == 0 {
-		if err == nil {
-			err = encoding.EncodeBytes(buf, childHash)
-		}
-		if err == nil {
-			err = encoding.EncodeBytes(buf, pin.Right)
-		}
-	} else {
-		if err == nil {
-			err = encoding.EncodeBytes(buf, pin.Left)
-		}
-		if err == nil {
-			err = encoding.EncodeBytes(buf, childHash)
-		}
+	if err == nil {
+		err = encoding.EncodeBytes(buf, rightHash)
 	}
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to hash ProofInnerNode: %v", err)
 	}
 
-	_, err = hasher.Write(buf.Bytes())
+	_, err = sha256Hasher.Write(buf.Bytes())
 	if err != nil {
 		return nil, err
 	}
-	return hasher.Sum(nil), nil
+	return sha256Hasher.Sum(nil), nil
 }
 
 //----------------------------------------
@@ -130,8 +145,22 @@ func (pln ProofLeafNode) stringIndented(indent string) string {
 		indent)
 }
 
+// Hash computes the hash of this leaf node using SHA256 (legacy method).
 func (pln ProofLeafNode) Hash() ([]byte, error) {
-	hasher := sha256.New()
+	return pln.HashWithHasher(nil)
+}
+
+// HashWithHasher computes the hash of this leaf node using the provided hasher.
+// If hasher is nil or is SHA256, uses legacy SHA256 hashing.
+func (pln ProofLeafNode) HashWithHasher(hasher hash.Hasher) ([]byte, error) {
+	// Use configurable hasher if provided and not SHA256
+	if hasher != nil && hasher.Algorithm() != hash.SHA256 {
+		// For Poseidon, height is 0 and size is 1 for leaves
+		return hasher.HashLeaf(0, 1, pln.Version, pln.Key, pln.ValueHash), nil
+	}
+
+	// Legacy SHA256 hashing
+	sha256Hasher := sha256.New()
 
 	buf := bufPool.Get().(*bytes.Buffer)
 	buf.Reset()
@@ -153,12 +182,12 @@ func (pln ProofLeafNode) Hash() ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to hash ProofLeafNode: %v", err)
 	}
-	_, err = hasher.Write(buf.Bytes())
+	_, err = sha256Hasher.Write(buf.Bytes())
 	if err != nil {
 		return nil, err
 	}
 
-	return hasher.Sum(nil), nil
+	return sha256Hasher.Sum(nil), nil
 }
 
 //----------------------------------------

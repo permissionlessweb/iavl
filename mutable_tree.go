@@ -9,6 +9,7 @@ import (
 
 	dbm "github.com/cosmos/iavl/db"
 	"github.com/cosmos/iavl/fastnode"
+	"github.com/cosmos/iavl/hash"
 	ibytes "github.com/cosmos/iavl/internal/bytes"
 )
 
@@ -141,6 +142,14 @@ func (tree *MutableTree) Hash() []byte {
 // WorkingHash returns the hash of the current working tree.
 func (tree *MutableTree) WorkingHash() []byte {
 	return tree.root.hashWithCount(tree.WorkingVersion())
+}
+
+// getHasher returns the hasher configured for this tree.
+func (tree *MutableTree) getHasher() hash.Hasher {
+	if tree.ndb != nil {
+		return tree.ndb.opts.Hasher
+	}
+	return nil
 }
 
 func (tree *MutableTree) WorkingVersion() int64 {
@@ -1045,7 +1054,7 @@ func (tree *MutableTree) saveNewNodes(version int64) error {
 			}
 		}
 
-		node._hash(version)
+		node._hashWithHasher(version, tree.getHasher())
 		newNodes = append(newNodes, node)
 
 		return node.nodeKey.GetKey(), nil

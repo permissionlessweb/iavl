@@ -5,6 +5,8 @@ import (
 	"strings"
 
 	dbm "github.com/cosmos/iavl/db"
+
+	"github.com/cosmos/iavl/hash"
 )
 
 // ImmutableTree contains the immutable tree at a given version. It is typically created by calling
@@ -149,7 +151,16 @@ func (t *ImmutableTree) Has(key []byte) (bool, error) {
 
 // Hash returns the root hash.
 func (t *ImmutableTree) Hash() []byte {
-	return t.root.hashWithCount(t.version + 1)
+	return t.root.hashWithCountAndHasher(t.version+1, t.getHasher())
+}
+
+// getHasher returns the hasher configured for this tree.
+// Returns nil if no custom hasher is configured (defaults to SHA256).
+func (t *ImmutableTree) getHasher() hash.Hasher {
+	if t.ndb != nil {
+		return t.ndb.opts.Hasher
+	}
+	return nil
 }
 
 // Export returns an iterator that exports tree nodes as ExportNodes. These nodes can be

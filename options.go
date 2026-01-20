@@ -1,6 +1,10 @@
 package iavl
 
-import "sync/atomic"
+import (
+	"sync/atomic"
+
+	"github.com/cosmos/iavl/hash"
+)
 
 // Statisc about db runtime state
 type Statistics struct {
@@ -87,6 +91,9 @@ type Options struct {
 
 	// AsyncPruning is a flag to enable async pruning
 	AsyncPruning bool
+	// Hasher specifies the hash function to use. If nil, defaults to SHA256.
+	// Use hash.NewPoseidonHasher() for ZK-circuit-friendly hashing.
+	Hasher hash.Hasher
 }
 
 // DefaultOptions returns the default options for IAVL.
@@ -126,5 +133,14 @@ func FlushThresholdOption(ft int) Option {
 func AsyncPruningOption(asyncPruning bool) Option {
 	return func(opts *Options) {
 		opts.AsyncPruning = asyncPruning
+	}
+}
+
+// HasherOption sets the Hasher for the tree.
+// If nil, defaults to SHA256 hashing.
+// Use hash.NewPoseidonHasher() for ZK-circuit-friendly hashing.
+func HasherOption(h hash.Hasher) Option {
+	return func(opts *Options) {
+		opts.Hasher = h
 	}
 }

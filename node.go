@@ -13,6 +13,7 @@ import (
 	"math"
 
 	"github.com/cosmos/iavl/cache"
+	"github.com/cosmos/iavl/hash"
 
 	"github.com/cosmos/iavl/internal/color"
 	"github.com/cosmos/iavl/internal/encoding"
@@ -424,10 +425,31 @@ func (node *Node) getByIndex(t *ImmutableTree, index int64) (key []byte, value [
 // Computes the hash of the node without computing its descendants. Must be
 // called on nodes which have descendant node hashes already computed.
 func (node *Node) _hash(version int64) []byte {
+	return node._hashWithHasher(version, nil)
+}
+
+// _hashWithHasher computes the hash of the node using the provided hasher.
+// If hasher is nil, uses SHA256 (legacy behavior).
+func (node *Node) _hashWithHasher(version int64, hasher hash.Hasher) []byte {
 	if node.hash != nil {
 		return node.hash
 	}
 
+	// Use configurable hasher if provided and not SHA256
+	if hasher != nil && hasher.Algorithm() != hash.SHA256 {
+		if node.isLeaf() {
+			valueHash := hasher.HashValue(node.value)
+			node.hash = hasher.HashLeaf(node.subtreeHeight, node.size, version, node.key, valueHash)
+		} else {
+			if node.leftNode == nil || node.rightNode == nil {
+				return nil
+			}
+			node.hash = hasher.HashInner(node.subtreeHeight, node.size, version, node.leftNode.hash, node.rightNode.hash)
+		}
+		return node.hash
+	}
+
+	// Legacy SHA256 hashing
 	h := sha256.New()
 	if err := node.writeHashBytes(h, version); err != nil {
 		return nil
@@ -442,13 +464,35 @@ func (node *Node) _hash(version int64) []byte {
 // If the tree is empty (i.e. the node is nil), returns the hash of an empty input,
 // to conform with RFC-6962.
 func (node *Node) hashWithCount(version int64) []byte {
+	return node.hashWithCountAndHasher(version, nil)
+}
+
+// hashWithCountAndHasher hashes the node and its descendants using the provided hasher.
+// If hasher is nil, uses SHA256 (legacy behavior).
+func (node *Node) hashWithCountAndHasher(version int64, hasher hash.Hasher) []byte {
 	if node == nil {
+		if hasher != nil && hasher.Algorithm() != hash.SHA256 {
+			return hasher.EmptyHash()
+		}
 		return sha256.New().Sum(nil)
 	}
 	if node.hash != nil {
 		return node.hash
 	}
 
+	// Use configurable hasher if provided and not SHA256
+	if hasher != nil && hasher.Algorithm() != hash.SHA256 {
+		// Recursively hash children first
+		if node.leftNode != nil {
+			node.leftNode.hashWithCountAndHasher(version, hasher)
+		}
+		if node.rightNode != nil {
+			node.rightNode.hashWithCountAndHasher(version, hasher)
+		}
+		return node._hashWithHasher(version, hasher)
+	}
+
+	// Legacy SHA256 hashing
 	h := sha256.New()
 	if err := node.writeHashBytesRecursively(h, version); err != nil {
 		// writeHashBytesRecursively doesn't return an error unless h.Write does,
