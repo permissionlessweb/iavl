@@ -91,9 +91,26 @@ type Options struct {
 
 	// AsyncPruning is a flag to enable async pruning
 	AsyncPruning bool
+
 	// Hasher specifies the hash function to use. If nil, defaults to SHA256.
 	// Use hash.NewPoseidonHasher() for ZK-circuit-friendly hashing.
 	Hasher hash.Hasher
+
+	// EnableTCT enables the Tiered Commitment Tree for parallel ZK-friendly state tracking.
+	// When enabled, state changes are also tracked in a TCT structure alongside the main IAVL tree.
+	// This provides efficient Poseidon-based proofs for ZK circuits.
+	EnableTCT bool
+
+	// TCTWitnessAll when true, keeps all commitments witnessed for proof generation.
+	// When false (default), only explicitly witnessed keys can generate proofs.
+	TCTWitnessAll bool
+
+	// TCTAutoEndBlock when true, automatically ends TCT blocks at the threshold.
+	TCTAutoEndBlock bool
+
+	// TCTBlockThreshold is the number of commitments before auto-ending a TCT block.
+	// Default is 10000.
+	TCTBlockThreshold int
 }
 
 // DefaultOptions returns the default options for IAVL.
@@ -142,5 +159,30 @@ func AsyncPruningOption(asyncPruning bool) Option {
 func HasherOption(h hash.Hasher) Option {
 	return func(opts *Options) {
 		opts.Hasher = h
+	}
+}
+
+// EnableTCTOption enables the Tiered Commitment Tree for parallel ZK-friendly state tracking.
+// When enabled, state changes are tracked in a TCT structure alongside the main IAVL tree.
+func EnableTCTOption(enable bool) Option {
+	return func(opts *Options) {
+		opts.EnableTCT = enable
+	}
+}
+
+// TCTWitnessAllOption sets whether all commitments should be witnessed for proof generation.
+func TCTWitnessAllOption(witnessAll bool) Option {
+	return func(opts *Options) {
+		opts.TCTWitnessAll = witnessAll
+	}
+}
+
+// TCTAutoEndBlockOption enables automatic block ending at the threshold.
+func TCTAutoEndBlockOption(autoEnd bool, threshold int) Option {
+	return func(opts *Options) {
+		opts.TCTAutoEndBlock = autoEnd
+		if threshold > 0 {
+			opts.TCTBlockThreshold = threshold
+		}
 	}
 }

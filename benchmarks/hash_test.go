@@ -8,6 +8,7 @@ import (
 
 	"github.com/cosmos/iavl"
 	iavlhash "github.com/cosmos/iavl/hash"
+	"github.com/cosmos/iavl/tct"
 	"github.com/stretchr/testify/require"
 
 	_ "crypto/sha256"
@@ -83,5 +84,31 @@ func benchIAVLHasher(b *testing.B, hasher iavlhash.Hasher, size int) {
 	for i := 0; i < b.N; i++ {
 		// grab a slice of size bytes from random string
 		hasher.HashValue(inputs[i : i+size])
+	}
+}
+
+// BenchmarkTCTVisualization demonstrates TCT DOT graph visualization.
+func BenchmarkTCTVisualization(b *testing.B) {
+	config := tct.DefaultTieredTreeConfig()
+	tree := tct.NewTieredCommitmentTree(config)
+
+	// Create a large single block with many commitments to show quaternary branching
+	// Use 4^5 = 1024 commitments to fill multiple levels of the quaternary tree
+	totalCommitments := 1024
+	for i := 0; i < totalCommitments; i++ {
+		commitmentData := make([]byte, 32)
+		for j := range commitmentData {
+			commitmentData[j] = byte((i + j) % 256) // Deterministic but varied data
+		}
+		tree.InsertCommitment(commitmentData, tct.WitnessKeep)
+	}
+
+	// Don't end the block yet - keep it as a working block to show internal structure
+	// tree.EndBlock() // Commented out to show working block structure
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		// Write DOT graph to visualize the quaternary tree structure with full branching
+		tct.WriteDOTGraphToFile("/tmp/tct_tree.dot", tree)
 	}
 }
