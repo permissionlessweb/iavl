@@ -13,6 +13,7 @@ import (
 	"math"
 
 	"github.com/cosmos/iavl/cache"
+	"github.com/cosmos/iavl/hash"
 
 	"github.com/cosmos/iavl/internal/color"
 	"github.com/cosmos/iavl/internal/encoding"
@@ -95,7 +96,7 @@ func (node *Node) GetKey() []byte {
 }
 
 // MakeNode constructs an *Node from an encoded byte slice.
-func MakeNode(nk, buf []byte) (*Node, error) {
+func MakeNode(nk, buf []byte, hasher hash.Hasher) (*Node, error) {
 	// Read node header (height, size, key).
 	height, n, err := encoding.DecodeVarint(buf)
 	if err != nil {
@@ -134,7 +135,7 @@ func MakeNode(nk, buf []byte) (*Node, error) {
 		}
 		node.value = val
 		// ensure take the hash for the leaf node
-		node._hash(node.nodeKey.version)
+		node._hashWithHasher(node.nodeKey.version, hasher)
 	} else { // Read children.
 		node.hash, n, err = encoding.DecodeBytes(buf)
 		if err != nil {
@@ -421,10 +422,33 @@ func (node *Node) getByIndex(t *ImmutableTree, index int64) (key []byte, value [
 	return rightNode.getByIndex(t, index-leftNode.size)
 }
 
+func useCustomHasher(h hash.Hasher) bool {
+	return h != nil && h.Algorithm() != hash.SHA256
+}
+
 // Computes the hash of the node without computing its descendants. Must be
 // called on nodes which have descendant node hashes already computed.
 func (node *Node) _hash(version int64) []byte {
+	return node._hashWithHasher(version, nil)
+}
+
+// _hashWithHasher computes the hash of the node using the provided hasher.
+// If hasher is nil or SHA-256, uses the legacy writeHashBytes path.
+func (node *Node) _hashWithHasher(version int64, hasher hash.Hasher) []byte {
 	if node.hash != nil {
+		return node.hash
+	}
+
+	if useCustomHasher(hasher) {
+		if node.isLeaf() {
+			valueHash := hasher.HashValue(node.value)
+			node.hash = hasher.HashLeaf(node.subtreeHeight, node.size, version, node.key, valueHash)
+		} else {
+			if node.leftNode == nil || node.rightNode == nil {
+				return nil
+			}
+			node.hash = hasher.HashInner(node.subtreeHeight, node.size, version, node.leftNode.hash, node.rightNode.hash)
+		}
 		return node.hash
 	}
 
@@ -442,11 +466,30 @@ func (node *Node) _hash(version int64) []byte {
 // If the tree is empty (i.e. the node is nil), returns the hash of an empty input,
 // to conform with RFC-6962.
 func (node *Node) hashWithCount(version int64) []byte {
+	return node.hashWithCountAndHasher(version, nil)
+}
+
+// hashWithCountAndHasher hashes the node and its descendants using the provided hasher.
+// If hasher is nil or SHA-256, uses the legacy SHA-256 path.
+func (node *Node) hashWithCountAndHasher(version int64, hasher hash.Hasher) []byte {
 	if node == nil {
+		if useCustomHasher(hasher) {
+			return hasher.EmptyHash()
+		}
 		return sha256.New().Sum(nil)
 	}
 	if node.hash != nil {
 		return node.hash
+	}
+
+	if useCustomHasher(hasher) {
+		if node.leftNode != nil {
+			node.leftNode.hashWithCountAndHasher(version, hasher)
+		}
+		if node.rightNode != nil {
+			node.rightNode.hashWithCountAndHasher(version, hasher)
+		}
+		return node._hashWithHasher(version, hasher)
 	}
 
 	h := sha256.New()

@@ -2,6 +2,8 @@ package iavl
 
 import (
 	"fmt"
+
+	"github.com/cosmos/iavl/hash"
 )
 
 // PrintTree prints the whole tree in an indented form.
@@ -30,7 +32,11 @@ func printNode(ndb *nodeDB, node *Node, indent int) error {
 		printNode(ndb, rightNode, indent+1) //nolint:errcheck
 	}
 
-	hash := node._hash(node.nodeKey.version)
+	var hasher hash.Hasher
+	if ndb != nil {
+		hasher = ndb.opts.Hasher
+	}
+	hash := node._hashWithHasher(node.nodeKey.version, hasher)
 
 	fmt.Printf("%sh:%X\n", indentPrefix, hash)
 	if node.isLeaf() {

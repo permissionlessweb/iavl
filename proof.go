@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/cosmos/iavl/hash"
+
 	hexbytes "github.com/cosmos/iavl/internal/bytes"
 	"github.com/cosmos/iavl/internal/encoding"
 )
@@ -61,6 +63,29 @@ func (pin ProofInnerNode) stringIndented(indent string) string {
 }
 
 func (pin ProofInnerNode) Hash(childHash []byte) ([]byte, error) {
+	return pin.HashWithHasher(childHash, nil)
+}
+
+// HashWithHasher computes the hash of this inner node using the provided hasher.
+// If hasher is nil or SHA-256, uses legacy SHA-256 hashing.
+func (pin ProofInnerNode) HashWithHasher(childHash []byte, nodeHasher hash.Hasher) ([]byte, error) {
+	if len(pin.Left) > 0 && len(pin.Right) > 0 {
+		return nil, errors.New("both left and right child hashes are set")
+	}
+
+	var leftHash, rightHash []byte
+	if len(pin.Left) == 0 {
+		leftHash = childHash
+		rightHash = pin.Right
+	} else {
+		leftHash = pin.Left
+		rightHash = childHash
+	}
+
+	if useCustomHasher(nodeHasher) {
+		return nodeHasher.HashInner(pin.Height, pin.Size, pin.Version, leftHash, rightHash), nil
+	}
+
 	hasher := sha256.New()
 
 	buf := bufPool.Get().(*bytes.Buffer)
@@ -75,24 +100,11 @@ func (pin ProofInnerNode) Hash(childHash []byte) ([]byte, error) {
 		err = encoding.EncodeVarint(buf, pin.Version)
 	}
 
-	if len(pin.Left) > 0 && len(pin.Right) > 0 {
-		return nil, errors.New("both left and right child hashes are set")
+	if err == nil {
+		err = encoding.EncodeBytes(buf, leftHash)
 	}
-
-	if len(pin.Left) == 0 {
-		if err == nil {
-			err = encoding.EncodeBytes(buf, childHash)
-		}
-		if err == nil {
-			err = encoding.EncodeBytes(buf, pin.Right)
-		}
-	} else {
-		if err == nil {
-			err = encoding.EncodeBytes(buf, pin.Left)
-		}
-		if err == nil {
-			err = encoding.EncodeBytes(buf, childHash)
-		}
+	if err == nil {
+		err = encoding.EncodeBytes(buf, rightHash)
 	}
 
 	if err != nil {
@@ -131,6 +143,16 @@ func (pln ProofLeafNode) stringIndented(indent string) string {
 }
 
 func (pln ProofLeafNode) Hash() ([]byte, error) {
+	return pln.HashWithHasher(nil)
+}
+
+// HashWithHasher computes the hash of this leaf node using the provided hasher.
+// If hasher is nil or SHA-256, uses legacy SHA-256 hashing.
+func (pln ProofLeafNode) HashWithHasher(nodeHasher hash.Hasher) ([]byte, error) {
+	if useCustomHasher(nodeHasher) {
+		return nodeHasher.HashLeaf(0, 1, pln.Version, pln.Key, pln.ValueHash), nil
+	}
+
 	hasher := sha256.New()
 
 	buf := bufPool.Get().(*bytes.Buffer)

@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Improvements
+
+- Add optional BLAKE3-256 node hashing via `HasherOption` / `HasherOptionForStore`. SHA-256 remains the default (ICS23 `IavlSpec`). `CopyRehash` exports/imports so a destination hasher rebuilds node hashes.
+
 ## 1.2.9, May 18, 2026
 
 ### Bug Fixes 

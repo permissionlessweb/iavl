@@ -186,7 +186,7 @@ func (ndb *nodeDB) GetNode(nk []byte) (*Node, error) {
 			return nil, fmt.Errorf("error reading Legacy Node. bytes: %x, error: %v", buf, err)
 		}
 	} else {
-		node, err = MakeNode(nk, buf)
+		node, err = MakeNode(nk, buf, ndb.opts.Hasher)
 		if err != nil {
 			return nil, fmt.Errorf("error reading Node. bytes: %x, error: %v", buf, err)
 		}
@@ -1341,7 +1341,7 @@ func (ndb *nodeDB) traverseNodes(fn func(node *Node) error) error {
 		if isRef, _ := isReferenceRoot(value); isRef {
 			return nil
 		}
-		node, err := MakeNode(key[1:], value)
+		node, err := MakeNode(key[1:], value, ndb.opts.Hasher)
 		if err != nil {
 			return err
 		}

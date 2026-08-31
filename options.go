@@ -1,6 +1,10 @@
 package iavl
 
-import "sync/atomic"
+import (
+	"sync/atomic"
+
+	"github.com/cosmos/iavl/hash"
+)
 
 // Statisc about db runtime state
 type Statistics struct {
@@ -87,6 +91,11 @@ type Options struct {
 
 	// AsyncPruning is a flag to enable async pruning
 	AsyncPruning bool
+
+	// Hasher specifies the hash function to use. If nil, uses legacy SHA-256
+	// (ICS23 IavlSpec). Apps should pass HasherOptionForStore(storeKey) so
+	// IBC-facing stores stay SHA-256 and all other stores use BLAKE3.
+	Hasher hash.Hasher
 }
 
 // DefaultOptions returns the default options for IAVL.
@@ -127,4 +136,18 @@ func AsyncPruningOption(asyncPruning bool) Option {
 	return func(opts *Options) {
 		opts.AsyncPruning = asyncPruning
 	}
+}
+
+// HasherOption sets the Hasher for the tree.
+// If nil, the tree uses legacy SHA-256 hashing (ICS23 IavlSpec).
+func HasherOption(h hash.Hasher) Option {
+	return func(opts *Options) {
+		opts.Hasher = h
+	}
+}
+
+// SHA256Option restores legacy SHA-256 hashing.
+// Required for ICS23 IavlSpec proofs, which only define SHA-256.
+func SHA256Option() Option {
+	return HasherOption(nil)
 }

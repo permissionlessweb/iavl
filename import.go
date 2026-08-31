@@ -59,7 +59,7 @@ func newImporter(tree *MutableTree, version int64) (*Importer, error) {
 
 // writeNode writes the node content to the storage.
 func (i *Importer) writeNode(node *Node) error {
-	node._hash(node.nodeKey.version)
+	node._hashWithHasher(node.nodeKey.version, i.tree.getHasher())
 	if err := node.validate(); err != nil {
 		return err
 	}
