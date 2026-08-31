@@ -148,8 +148,21 @@ func (t *ImmutableTree) Has(key []byte) (bool, error) {
 	return t.root.has(t, key)
 }
 
+func (t *ImmutableTree) useBlake3() bool {
+	return t.ndb != nil && t.ndb.opts.UseBlake3
+}
+
+func (t *ImmutableTree) newLeaf(key, value []byte) *Node {
+	n := NewNode(key, value)
+	n.useBlake3 = t.useBlake3()
+	return n
+}
+
 // Hash returns the root hash.
 func (t *ImmutableTree) Hash() []byte {
+	if t.root == nil {
+		return emptyDigest(t.useBlake3())
+	}
 	return t.root.hashWithCount(t.version + 1)
 }
 

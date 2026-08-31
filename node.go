@@ -5,7 +5,6 @@ package iavl
 
 import (
 	"bytes"
-	"crypto/sha256"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -72,6 +71,7 @@ type Node struct {
 	rightNode     *Node
 	subtreeHeight int8
 	isLegacy      bool
+	useBlake3     bool
 }
 
 var _ cache.Node = (*Node)(nil)
@@ -94,8 +94,12 @@ func (node *Node) GetKey() []byte {
 	return node.nodeKey.GetKey()
 }
 
-// MakeNode constructs an *Node from an encoded byte slice.
+// MakeNode constructs an *Node from an encoded byte slice (SHA-256 leaf rehash).
 func MakeNode(nk, buf []byte) (*Node, error) {
+	return makeNode(nk, buf, false)
+}
+
+func makeNode(nk, buf []byte, useBlake3 bool) (*Node, error) {
 	// Read node header (height, size, key).
 	height, n, err := encoding.DecodeVarint(buf)
 	if err != nil {
@@ -124,6 +128,7 @@ func MakeNode(nk, buf []byte) (*Node, error) {
 		size:          size,
 		nodeKey:       GetNodeKey(nk),
 		key:           key,
+		useBlake3:     useBlake3,
 	}
 
 	// Read node body.
@@ -325,6 +330,7 @@ func (node *Node) clone(tree *MutableTree) (*Node, error) {
 		rightNodeKey:  node.rightNodeKey,
 		leftNode:      leftNode,
 		rightNode:     rightNode,
+		useBlake3:     node.useBlake3,
 	}, nil
 }
 
@@ -428,7 +434,7 @@ func (node *Node) _hash(version int64) []byte {
 		return node.hash
 	}
 
-	h := sha256.New()
+	h := newDigest(node.useBlake3)
 	if err := node.writeHashBytes(h, version); err != nil {
 		return nil
 	}
@@ -443,13 +449,13 @@ func (node *Node) _hash(version int64) []byte {
 // to conform with RFC-6962.
 func (node *Node) hashWithCount(version int64) []byte {
 	if node == nil {
-		return sha256.New().Sum(nil)
+		return emptyDigest(false)
 	}
 	if node.hash != nil {
 		return node.hash
 	}
 
-	h := sha256.New()
+	h := newDigest(node.useBlake3)
 	if err := node.writeHashBytesRecursively(h, version); err != nil {
 		// writeHashBytesRecursively doesn't return an error unless h.Write does,
 		// and hash.Hash.Write doesn't.
@@ -524,7 +530,7 @@ func (node *Node) writeHashBytes(w io.Writer, version int64) error {
 
 		// Indirection needed to provide proofs without values.
 		// (e.g. ProofLeafNode.ValueHash)
-		valueHash := sha256.Sum256(node.value)
+		valueHash := sum256(node.useBlake3, node.value)
 
 		err = encoding.Encode32BytesHash(w, valueHash[:])
 		if err != nil {

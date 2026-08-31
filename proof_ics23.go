@@ -11,7 +11,17 @@ import (
 GetMembershipProof will produce a CommitmentProof that the given key (and queries value) exists in the iavl tree.
 If the key doesn't exist in the tree, this will return an error.
 */
+func (t *ImmutableTree) requireSHA256Proofs() error {
+	if t.useBlake3() {
+		return errors.New("ICS23 IavlSpec proofs require SHA-256; this tree uses BLAKE3")
+	}
+	return nil
+}
+
 func (t *ImmutableTree) GetMembershipProof(key []byte) (*ics23.CommitmentProof, error) {
+	if err := t.requireSHA256Proofs(); err != nil {
+		return nil, err
+	}
 	exist, err := t.createExistenceProof(key)
 	if err != nil {
 		return nil, err
@@ -26,6 +36,9 @@ func (t *ImmutableTree) GetMembershipProof(key []byte) (*ics23.CommitmentProof, 
 
 // VerifyMembership returns true iff proof is an ExistenceProof for the given key.
 func (t *ImmutableTree) VerifyMembership(proof *ics23.CommitmentProof, key []byte) (bool, error) {
+	if err := t.requireSHA256Proofs(); err != nil {
+		return false, err
+	}
 	val, err := t.Get(key)
 	if err != nil {
 		return false, err
@@ -40,6 +53,9 @@ GetNonMembershipProof will produce a CommitmentProof that the given key doesn't 
 If the key exists in the tree, this will return an error.
 */
 func (t *ImmutableTree) GetNonMembershipProof(key []byte) (*ics23.CommitmentProof, error) {
+	if err := t.requireSHA256Proofs(); err != nil {
+		return nil, err
+	}
 	// idx is one node right of what we want....
 	var err error
 	idx, val, err := t.GetWithIndex(key)
@@ -90,6 +106,9 @@ func (t *ImmutableTree) GetNonMembershipProof(key []byte) (*ics23.CommitmentProo
 
 // VerifyNonMembership returns true iff proof is a NonExistenceProof for the given key.
 func (t *ImmutableTree) VerifyNonMembership(proof *ics23.CommitmentProof, key []byte) (bool, error) {
+	if err := t.requireSHA256Proofs(); err != nil {
+		return false, err
+	}
 	root := t.Hash()
 
 	return ics23.VerifyNonMembership(ics23.IavlSpec, root, proof, key), nil

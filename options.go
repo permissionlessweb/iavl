@@ -88,6 +88,10 @@ type Options struct {
 	// AsyncPruning is a flag to enable async pruning
 	AsyncPruning bool
 
+	// UseBlake3 hashes nodes with BLAKE3-256 instead of SHA-256.
+	// writeHashBytes is unchanged; only the digest is swapped. Default is SHA-256.
+	UseBlake3 bool
+
 	initialVersionSet bool
 }
 
@@ -129,5 +133,13 @@ func FlushThresholdOption(ft int) Option {
 func AsyncPruningOption(asyncPruning bool) Option {
 	return func(opts *Options) {
 		opts.AsyncPruning = asyncPruning
+	}
+}
+
+// Blake3Option hashes nodes with BLAKE3-256. ICS23 IavlSpec proofs require SHA-256
+// and are refused on trees created with this option.
+func Blake3Option() Option {
+	return func(opts *Options) {
+		opts.UseBlake3 = true
 	}
 }

@@ -6,6 +6,8 @@
 
 ### Improvements
 
+- Add optional BLAKE3-256 node hashing via `Blake3Option` (v1) and `TreeOptions.UseBlake3` (v2). `writeHashBytes` is unchanged; default remains SHA-256. ICS23 `IavlSpec` proofs are refused on BLAKE3 v1 trees.
+
 ## v1.3.6, April 6, 2026
 
 ### Bug Fixes 

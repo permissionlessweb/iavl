@@ -19,9 +19,11 @@ require (
 	github.com/fsnotify/fsnotify v1.8.0 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
+	github.com/klauspost/cpuid/v2 v2.0.12 // indirect
 	github.com/kr/pretty v0.3.1 // indirect
 	github.com/onsi/gomega v1.36.3 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
+	github.com/zeebo/blake3 v0.2.4 // indirect
 	golang.org/x/crypto v0.36.0 // indirect
 	golang.org/x/sys v0.31.0 // indirect
 	google.golang.org/protobuf v1.36.6 // indirect
