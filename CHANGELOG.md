@@ -4,6 +4,7 @@
 
 ### Improvements
 
+- Optional BLAKE3-256 node hashing via `TreeOptions.UseBlake3` (default remains SHA-256).
 - [#695](https://github.com/cosmos/iavl/pull/695) Add API `SaveChangeSet` to save the changeset as a new version.
 - [#703](https://github.com/cosmos/iavl/pull/703) New APIs `NewCompressExporter`/`NewCompressImporter` to support more compact snapshot format.
 - [#729](https://github.com/cosmos/iavl/pull/729) Speedup Genesis writes for IAVL, by writing in small batches.

@@ -3,7 +3,6 @@ package iavl
 import (
 	"bytes"
 	"context"
-	"crypto/sha256"
 	"fmt"
 	"os"
 	"time"
@@ -66,6 +65,9 @@ type TreeOptions struct {
 	HeightFilter       int8
 	EvictionDepth      int8
 	MetricsProxy       metrics.Proxy
+	// UseBlake3 hashes nodes with BLAKE3-256 instead of SHA-256.
+	// writeHashBytes is unchanged; only the digest is swapped.
+	UseBlake3 bool
 }
 
 func DefaultTreeOptions() TreeOptions {
@@ -96,6 +98,8 @@ func NewTree(sql *SqliteDb, pool *NodePool, opts TreeOptions) *Tree {
 		evictionDepth:      opts.EvictionDepth,
 	}
 
+	pool.useBlake3 = opts.UseBlake3
+
 	tree.sqlWriter.start(ctx)
 	return tree
 }
@@ -125,7 +129,7 @@ func (tree *Tree) LoadVersion(version int64) (err error) {
 			return err
 		}
 		if targetRoot == nil {
-			targetHash = emptyHash
+			targetHash = tree.pool.emptyHash()
 		} else {
 			targetHash = targetRoot.hash
 		}
@@ -209,7 +213,7 @@ func (tree *Tree) SaveVersion() ([]byte, int64, error) {
 // to conform with RFC-6962.
 func (tree *Tree) computeHash() []byte {
 	if tree.root == nil {
-		return sha256.New().Sum(nil)
+		return tree.pool.emptyHash()
 	}
 	tree.deepHash(tree.root, 0)
 	return tree.root.hash
@@ -669,7 +673,7 @@ func (tree *Tree) Close() error {
 
 func (tree *Tree) Hash() []byte {
 	if tree.root == nil {
-		return emptyHash
+		return tree.pool.emptyHash()
 	}
 	return tree.root.hash
 }

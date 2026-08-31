@@ -11,7 +11,8 @@ type NodePool struct {
 	free  chan int
 	nodes []Node
 
-	poolId uint64
+	poolId    uint64
+	useBlake3 bool
 }
 
 func NewNodePool() *NodePool {
@@ -34,7 +35,15 @@ func (np *NodePool) Get() *Node {
 	}
 	n := np.syncPool.Get().(*Node)
 	n.poolId = np.poolId
+	n.useBlake3 = np.useBlake3
 	return n
+}
+
+func (np *NodePool) emptyHash() []byte {
+	if np.useBlake3 {
+		return emptyBLAKE3
+	}
+	return emptySHA256
 }
 
 func (np *NodePool) Put(node *Node) {
@@ -50,6 +59,7 @@ func (np *NodePool) Put(node *Node) {
 	node.size = 0
 	node.dirty = false
 	node.evict = false
+	node.useBlake3 = false
 
 	node.poolId = 0
 	np.syncPool.Put(node)

@@ -584,6 +584,7 @@ func (snap *sqliteSnapshot) restorePostOrderStep(nextFn func() (*SnapshotNode, e
 			key:           snapshotNode.Key,
 			subtreeHeight: snapshotNode.Height,
 			nodeKey:       NewNodeKey(snapshotNode.Version, uint32(ordinal)),
+			useBlake3:     snap.sql.pool.useBlake3,
 		}
 
 		stackSize := len(stack)
@@ -652,6 +653,7 @@ func (snap *sqliteSnapshot) restorePreOrderStep(nextFn func() (*SnapshotNode, er
 			key:           snapshotNode.Key,
 			subtreeHeight: snapshotNode.Height,
 			nodeKey:       NewNodeKey(snapshotNode.Version, uint32(ordinal)),
+			useBlake3:     snap.sql.pool.useBlake3,
 		}
 
 		if node.isLeaf() {

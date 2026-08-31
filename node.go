@@ -13,6 +13,7 @@ import (
 	"unsafe"
 
 	encoding "github.com/cosmos/iavl/v2/internal"
+	"github.com/zeebo/blake3"
 )
 
 const hashSize = 32
@@ -59,9 +60,10 @@ type Node struct {
 	rightNode     *Node
 	subtreeHeight int8
 
-	dirty  bool
-	evict  bool
-	poolId uint64
+	dirty     bool
+	evict     bool
+	useBlake3 bool
+	poolId    uint64
 }
 
 func (node *Node) String() string {
@@ -331,13 +333,33 @@ func (node *Node) get(t *Tree, key []byte) (index int64, value []byte, err error
 }
 
 var (
-	hashPool = &sync.Pool{
+	sha256Pool = &sync.Pool{
 		New: func() any {
 			return sha256.New()
 		},
 	}
-	emptyHash = sha256.New().Sum(nil)
+	blake3Pool = &sync.Pool{
+		New: func() any {
+			return blake3.New()
+		},
+	}
+	emptySHA256 = sha256.New().Sum(nil)
+	emptyBLAKE3 = blake3.New().Sum(nil)
 )
+
+func (node *Node) digestPool() *sync.Pool {
+	if node.useBlake3 {
+		return blake3Pool
+	}
+	return sha256Pool
+}
+
+func (node *Node) sum256(bz []byte) [32]byte {
+	if node.useBlake3 {
+		return blake3.Sum256(bz)
+	}
+	return sha256.Sum256(bz)
+}
 
 // Computes the hash of the node without computing its descendants. Must be
 // called on nodes which have descendant node hashes already computed.
@@ -346,13 +368,14 @@ func (node *Node) _hash() []byte {
 		return node.hash
 	}
 
-	h := hashPool.Get().(hash.Hash)
+	pool := node.digestPool()
+	h := pool.Get().(hash.Hash)
 	if err := node.writeHashBytes(h); err != nil {
 		return nil
 	}
 	node.hash = h.Sum(nil)
 	h.Reset()
-	hashPool.Put(h)
+	pool.Put(h)
 
 	return node.hash
 }
@@ -383,7 +406,7 @@ func (node *Node) writeHashBytes(w io.Writer) error {
 
 		// Indirection needed to provide proofs without values.
 		// (e.g. ProofLeafNode.ValueHash)
-		valueHash := sha256.Sum256(node.value)
+		valueHash := node.sum256(node.value)
 
 		if err := EncodeBytes(w, valueHash[:]); err != nil {
 			return fmt.Errorf("writing value, %w", err)
