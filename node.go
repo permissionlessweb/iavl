@@ -434,11 +434,13 @@ func (node *Node) _hash(version int64) []byte {
 		return node.hash
 	}
 
-	h := newDigest(node.useBlake3)
+	h := getDigest(node.useBlake3)
 	if err := node.writeHashBytes(h, version); err != nil {
+		putDigest(node.useBlake3, h)
 		return nil
 	}
 	node.hash = h.Sum(nil)
+	putDigest(node.useBlake3, h)
 
 	return node.hash
 }
@@ -455,13 +457,15 @@ func (node *Node) hashWithCount(version int64) []byte {
 		return node.hash
 	}
 
-	h := newDigest(node.useBlake3)
+	h := getDigest(node.useBlake3)
 	if err := node.writeHashBytesRecursively(h, version); err != nil {
+		putDigest(node.useBlake3, h)
 		// writeHashBytesRecursively doesn't return an error unless h.Write does,
 		// and hash.Hash.Write doesn't.
 		panic(err)
 	}
 	node.hash = h.Sum(nil)
+	putDigest(node.useBlake3, h)
 
 	return node.hash
 }
