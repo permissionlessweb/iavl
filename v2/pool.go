@@ -12,6 +12,7 @@ type NodePool struct {
 	nodes []Node
 
 	poolId uint64
+	algo   HashAlgo
 }
 
 func NewNodePool() *NodePool {
@@ -34,7 +35,12 @@ func (np *NodePool) Get() *Node {
 	}
 	n := np.syncPool.Get().(*Node)
 	n.poolId = np.poolId
+	n.algo = np.algo
 	return n
+}
+
+func (np *NodePool) emptyHash() []byte {
+	return np.algo.emptyHash()
 }
 
 func (np *NodePool) Put(node *Node) {
@@ -50,6 +56,7 @@ func (np *NodePool) Put(node *Node) {
 	node.size = 0
 	node.dirty = false
 	node.evict = false
+	node.algo = HashSHA256
 
 	node.poolId = 0
 	np.syncPool.Put(node)

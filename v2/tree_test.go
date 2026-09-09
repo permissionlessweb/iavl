@@ -188,6 +188,60 @@ func Test_EmptyTree(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func Test_Blake3Option(t *testing.T) {
+	const blake3Empty = "af1349b9f5f9a1a6a0404dea36dcc9499bcb25c9adc112b7cc9a93cae41f3262"
+
+	newTree := func(useBlake3 bool) *Tree {
+		pool := NewNodePool()
+		sql, err := NewSqliteDb(pool, SqliteDbOptions{Path: t.TempDir()})
+		require.NoError(t, err)
+		opts := DefaultTreeOptions()
+		opts.UseBlake3 = useBlake3
+		return NewTree(sql, pool, opts)
+	}
+
+	empty := newTree(true)
+	require.Equal(t, blake3Empty, hex.EncodeToString(empty.Hash()))
+	emptyHash, _, err := empty.SaveVersion()
+	require.NoError(t, err)
+	require.Equal(t, blake3Empty, hex.EncodeToString(emptyHash))
+
+	shaTree := newTree(false)
+	blakeTree := newTree(true)
+	blakeTree2 := newTree(true)
+	for _, kv := range [][2][]byte{{[]byte("foo"), []byte("bar")}, {[]byte("baz"), []byte("qux")}} {
+		_, err = shaTree.Set(kv[0], kv[1])
+		require.NoError(t, err)
+		_, err = blakeTree.Set(kv[0], kv[1])
+		require.NoError(t, err)
+		_, err = blakeTree2.Set(kv[0], kv[1])
+		require.NoError(t, err)
+	}
+
+	shaHash, _, err := shaTree.SaveVersion()
+	require.NoError(t, err)
+	blakeHash, _, err := blakeTree.SaveVersion()
+	require.NoError(t, err)
+	blakeHash2, _, err := blakeTree2.SaveVersion()
+	require.NoError(t, err)
+
+	require.NotEqual(t, hex.EncodeToString(shaHash), hex.EncodeToString(blakeHash))
+	require.Equal(t, hex.EncodeToString(blakeHash), hex.EncodeToString(blakeHash2))
+	require.Equal(t, "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", hex.EncodeToString(newTree(false).Hash()))
+}
+
+func Test_Blake2b256Option(t *testing.T) {
+	const blake2b256Empty = "0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8"
+
+	pool := NewNodePool()
+	sql, err := NewSqliteDb(pool, SqliteDbOptions{Path: t.TempDir()})
+	require.NoError(t, err)
+	opts := DefaultTreeOptions()
+	opts.HashAlgo = HashBLAKE2b256
+	tree := NewTree(sql, pool, opts)
+	require.Equal(t, blake2b256Empty, hex.EncodeToString(tree.Hash()))
+}
+
 func Test_Replay(t *testing.T) {
 	unsafeBytesToStr := func(b []byte) string {
 		return *(*string)(unsafe.Pointer(&b))

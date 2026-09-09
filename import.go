@@ -139,6 +139,7 @@ func (i *Importer) Add(exportNode *ExportNode) error {
 		key:           exportNode.Key,
 		value:         exportNode.Value,
 		subtreeHeight: exportNode.Height,
+		algo:          i.tree.hashAlgo(),
 	}
 
 	// We build the tree from the bottom-left up. The stack is used to store unresolved left

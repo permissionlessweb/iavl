@@ -5,7 +5,6 @@ package iavl
 
 import (
 	"bytes"
-	"crypto/sha256"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -72,6 +71,7 @@ type Node struct {
 	rightNode     *Node
 	subtreeHeight int8
 	isLegacy      bool
+	algo          HashAlgo
 }
 
 var _ cache.Node = (*Node)(nil)
@@ -94,8 +94,12 @@ func (node *Node) GetKey() []byte {
 	return node.nodeKey.GetKey()
 }
 
-// MakeNode constructs an *Node from an encoded byte slice.
+// MakeNode constructs an *Node from an encoded byte slice (SHA-256 leaf rehash).
 func MakeNode(nk, buf []byte) (*Node, error) {
+	return makeNode(nk, buf, HashSHA256)
+}
+
+func makeNode(nk, buf []byte, algo HashAlgo) (*Node, error) {
 	// Read node header (height, size, key).
 	height, n, err := encoding.DecodeVarint(buf)
 	if err != nil {
@@ -124,6 +128,7 @@ func MakeNode(nk, buf []byte) (*Node, error) {
 		size:          size,
 		nodeKey:       GetNodeKey(nk),
 		key:           key,
+		algo:          algo,
 	}
 
 	// Read node body.
@@ -325,6 +330,7 @@ func (node *Node) clone(tree *MutableTree) (*Node, error) {
 		rightNodeKey:  node.rightNodeKey,
 		leftNode:      leftNode,
 		rightNode:     rightNode,
+		algo:          node.algo,
 	}, nil
 }
 
@@ -428,11 +434,13 @@ func (node *Node) _hash(version int64) []byte {
 		return node.hash
 	}
 
-	h := sha256.New()
+	h := getDigest(node.algo)
 	if err := node.writeHashBytes(h, version); err != nil {
+		putDigest(node.algo, h)
 		return nil
 	}
 	node.hash = h.Sum(nil)
+	putDigest(node.algo, h)
 
 	return node.hash
 }
@@ -443,19 +451,21 @@ func (node *Node) _hash(version int64) []byte {
 // to conform with RFC-6962.
 func (node *Node) hashWithCount(version int64) []byte {
 	if node == nil {
-		return sha256.New().Sum(nil)
+		return emptyDigest(HashSHA256)
 	}
 	if node.hash != nil {
 		return node.hash
 	}
 
-	h := sha256.New()
+	h := getDigest(node.algo)
 	if err := node.writeHashBytesRecursively(h, version); err != nil {
+		putDigest(node.algo, h)
 		// writeHashBytesRecursively doesn't return an error unless h.Write does,
 		// and hash.Hash.Write doesn't.
 		panic(err)
 	}
 	node.hash = h.Sum(nil)
+	putDigest(node.algo, h)
 
 	return node.hash
 }
@@ -524,7 +534,7 @@ func (node *Node) writeHashBytes(w io.Writer, version int64) error {
 
 		// Indirection needed to provide proofs without values.
 		// (e.g. ProofLeafNode.ValueHash)
-		valueHash := sha256.Sum256(node.value)
+		valueHash := sum256(node.algo, node.value)
 
 		err = encoding.Encode32BytesHash(w, valueHash[:])
 		if err != nil {

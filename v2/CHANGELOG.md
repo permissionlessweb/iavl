@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+* Optional BLAKE2b-256 node hashing via `TreeOptions.HashAlgo` (alongside BLAKE3).
 * [#1037](https://github.com/cosmos/iavl/pull/1037) Swap `zerolog` for internal logger interface
 
 ## [v2.0.0-alpha.4](https://github.com/cosmos/iavl/releases/tag/v2.0.0-alpha.4)

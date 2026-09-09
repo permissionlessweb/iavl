@@ -14,6 +14,31 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.23' # The Go version to download (if necessary) and use.
+          go-version: '1.23'
       - name: run benchmarks
         run: make bench
+
+  HasherDiscrepancy:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.23"
+      - name: SHA-256 vs BLAKE3 discrepancy
+        env:
+          GOMAXPROCS: "1"
+        run: |
+          chmod +x scripts/bench_hasher.sh
+          ./scripts/bench_hasher.sh 1
+      - name: upload bench log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hasher-bench-${{ matrix.os }}
+          path: hasher.bench.txt
+

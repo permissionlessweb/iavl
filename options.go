@@ -88,7 +88,24 @@ type Options struct {
 	// AsyncPruning is a flag to enable async pruning
 	AsyncPruning bool
 
+	// UseBlake3 hashes nodes with BLAKE3-256 instead of SHA-256.
+	// Kept for compatibility; prefer HashAlgo / Blake3Option.
+	UseBlake3 bool
+
+	// HashAlgo selects SHA-256 (default), BLAKE3-256, or BLAKE2b-256.
+	HashAlgo HashAlgo
+
 	initialVersionSet bool
+}
+
+func (opts Options) hashAlgo() HashAlgo {
+	if opts.HashAlgo != HashSHA256 {
+		return opts.HashAlgo
+	}
+	if opts.UseBlake3 {
+		return HashBLAKE3
+	}
+	return HashSHA256
 }
 
 // DefaultOptions returns the default options for IAVL.
@@ -129,5 +146,22 @@ func FlushThresholdOption(ft int) Option {
 func AsyncPruningOption(asyncPruning bool) Option {
 	return func(opts *Options) {
 		opts.AsyncPruning = asyncPruning
+	}
+}
+
+// Blake3Option hashes nodes with BLAKE3-256. ICS23 IavlSpec proofs require SHA-256
+// and are refused on trees created with this option.
+func Blake3Option() Option {
+	return func(opts *Options) {
+		opts.UseBlake3 = true
+		opts.HashAlgo = HashBLAKE3
+	}
+}
+
+// Blake2b256Option hashes nodes with BLAKE2b-256. ICS23 IavlSpec proofs require SHA-256
+// and are refused on trees created with this option.
+func Blake2b256Option() Option {
+	return func(opts *Options) {
+		opts.HashAlgo = HashBLAKE2b256
 	}
 }
