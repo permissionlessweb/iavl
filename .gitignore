@@ -9,6 +9,8 @@ vendor
 # created in test code
 test.db
 
+hasher.bench.txt
+
 # profiling data
 *\.test
 cpu*.out

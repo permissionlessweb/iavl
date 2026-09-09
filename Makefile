@@ -54,6 +54,13 @@ bench:
 		go test $(LDFLAGS) -run=NOTEST -bench=RandomBytes .
 .PHONY: bench
 
+# SHA-256 vs BLAKE3 ns/op table (v1 + v2). COUNT=3 locally.
+COUNT ?= 1
+bench-hasher:
+	chmod +x scripts/bench_hasher.sh
+	GOMAXPROCS=1 ./scripts/bench_hasher.sh $(COUNT)
+.PHONY: bench-hasher
+
 # fullbench is extra tests needing lots of memory and to run locally
 fullbench:
 	cd benchmarks && \
