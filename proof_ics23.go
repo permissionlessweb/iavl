@@ -12,8 +12,8 @@ GetMembershipProof will produce a CommitmentProof that the given key (and querie
 If the key doesn't exist in the tree, this will return an error.
 */
 func (t *ImmutableTree) requireSHA256Proofs() error {
-	if t.useBlake3() {
-		return errors.New("ICS23 IavlSpec proofs require SHA-256; this tree uses BLAKE3")
+	if t.hashAlgo() != HashSHA256 {
+		return errors.New("ICS23 IavlSpec proofs require SHA-256; this tree uses a non-SHA-256 hasher")
 	}
 	return nil
 }

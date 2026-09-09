@@ -10,7 +10,9 @@ require (
 	github.com/google/btree v1.1.3
 	github.com/stretchr/testify v1.10.0
 	github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
+	github.com/zeebo/blake3 v0.2.4
 	go.uber.org/mock v0.5.2
+	golang.org/x/crypto v0.36.0
 )
 
 require (
@@ -23,8 +25,6 @@ require (
 	github.com/kr/pretty v0.3.1 // indirect
 	github.com/onsi/gomega v1.36.3 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	github.com/zeebo/blake3 v0.2.4 // indirect
-	golang.org/x/crypto v0.36.0 // indirect
 	golang.org/x/sys v0.31.0 // indirect
 	google.golang.org/protobuf v1.36.6 // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect

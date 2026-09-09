@@ -230,6 +230,18 @@ func Test_Blake3Option(t *testing.T) {
 	require.Equal(t, "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", hex.EncodeToString(newTree(false).Hash()))
 }
 
+func Test_Blake2b256Option(t *testing.T) {
+	const blake2b256Empty = "0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8"
+
+	pool := NewNodePool()
+	sql, err := NewSqliteDb(pool, SqliteDbOptions{Path: t.TempDir()})
+	require.NoError(t, err)
+	opts := DefaultTreeOptions()
+	opts.HashAlgo = HashBLAKE2b256
+	tree := NewTree(sql, pool, opts)
+	require.Equal(t, blake2b256Empty, hex.EncodeToString(tree.Hash()))
+}
+
 func Test_Replay(t *testing.T) {
 	unsafeBytesToStr := func(b []byte) string {
 		return *(*string)(unsafe.Pointer(&b))

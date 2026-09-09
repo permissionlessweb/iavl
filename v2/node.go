@@ -2,7 +2,6 @@ package iavl
 
 import (
 	"bytes"
-	"crypto/sha256"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -13,7 +12,6 @@ import (
 	"unsafe"
 
 	encoding "github.com/cosmos/iavl/v2/internal"
-	"github.com/zeebo/blake3"
 )
 
 const hashSize = 32
@@ -62,7 +60,7 @@ type Node struct {
 
 	dirty     bool
 	evict     bool
-	useBlake3 bool
+	algo      HashAlgo
 	poolId    uint64
 }
 
@@ -332,34 +330,12 @@ func (node *Node) get(t *Tree, key []byte) (index int64, value []byte, err error
 	return index, value, nil
 }
 
-var (
-	sha256Pool = &sync.Pool{
-		New: func() any {
-			return sha256.New()
-		},
-	}
-	blake3Pool = &sync.Pool{
-		New: func() any {
-			return blake3.New()
-		},
-	}
-	emptySHA256 = sha256.New().Sum(nil)
-	emptyBLAKE3 = blake3.New().Sum(nil)
-	emptyHash   = emptySHA256
-)
-
 func (node *Node) digestPool() *sync.Pool {
-	if node.useBlake3 {
-		return blake3Pool
-	}
-	return sha256Pool
+	return node.algo.pool()
 }
 
 func (node *Node) sum256(bz []byte) [32]byte {
-	if node.useBlake3 {
-		return blake3.Sum256(bz)
-	}
-	return sha256.Sum256(bz)
+	return node.algo.sum256(bz)
 }
 
 // Computes the hash of the node without computing its descendants. Must be

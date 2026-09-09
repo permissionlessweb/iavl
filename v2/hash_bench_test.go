@@ -15,17 +15,15 @@ func benchPayload(size int) []byte {
 	return buf
 }
 
+var benchAlgos = []HashAlgo{HashSHA256, HashBLAKE3, HashBLAKE2b256}
+
 func BenchmarkDigestSum256(b *testing.B) {
 	sizes := []int{32, 64, 75, 256}
 	for _, size := range sizes {
 		payload := benchPayload(size)
-		for _, blake := range []bool{false, true} {
-			name := "sha256/" + strconv.Itoa(size)
-			if blake {
-				name = "blake3/" + strconv.Itoa(size)
-			}
-			n := &Node{useBlake3: blake}
-			b.Run(name, func(b *testing.B) {
+		for _, algo := range benchAlgos {
+			n := &Node{algo: algo}
+			b.Run(algo.String()+"/"+strconv.Itoa(size), func(b *testing.B) {
 				b.SetBytes(int64(size))
 				b.ReportAllocs()
 				for i := 0; i < b.N; i++ {
@@ -37,21 +35,21 @@ func BenchmarkDigestSum256(b *testing.B) {
 	}
 }
 
-func benchV2Leaf(useBlake3 bool) *Node {
+func benchV2Leaf(algo HashAlgo) *Node {
 	return &Node{
 		key:           []byte("benchmark-key-25-bytes!!"),
 		value:         benchPayload(64),
 		subtreeHeight: 0,
 		size:          1,
 		nodeKey:       NewNodeKey(1, 1),
-		useBlake3:     useBlake3,
+		algo:          algo,
 	}
 }
 
-func benchV2Inner(useBlake3 bool) *Node {
-	left := benchV2Leaf(useBlake3)
+func benchV2Inner(algo HashAlgo) *Node {
+	left := benchV2Leaf(algo)
 	left._hash()
-	right := benchV2Leaf(useBlake3)
+	right := benchV2Leaf(algo)
 	right.key = []byte("benchmark-key-right!!!!!")
 	right.nodeKey = NewNodeKey(1, 2)
 	right.hash = nil
@@ -63,18 +61,14 @@ func benchV2Inner(useBlake3 bool) *Node {
 		nodeKey:       NewNodeKey(1, 3),
 		leftNode:      left,
 		rightNode:     right,
-		useBlake3:     useBlake3,
+		algo:          algo,
 	}
 }
 
 func BenchmarkNode_hash(b *testing.B) {
-	for _, blake := range []bool{false, true} {
-		algo := "sha256"
-		if blake {
-			algo = "blake3"
-		}
-		b.Run(algo+"/leaf", func(b *testing.B) {
-			node := benchV2Leaf(blake)
+	for _, algo := range benchAlgos {
+		b.Run(algo.String()+"/leaf", func(b *testing.B) {
+			node := benchV2Leaf(algo)
 			b.ReportAllocs()
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
@@ -82,8 +76,8 @@ func BenchmarkNode_hash(b *testing.B) {
 				hashSink = node._hash()
 			}
 		})
-		b.Run(algo+"/inner", func(b *testing.B) {
-			node := benchV2Inner(blake)
+		b.Run(algo.String()+"/inner", func(b *testing.B) {
+			node := benchV2Inner(algo)
 			b.ReportAllocs()
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {

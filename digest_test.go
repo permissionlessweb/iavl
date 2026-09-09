@@ -42,3 +42,36 @@ func TestBlake3Option(t *testing.T) {
 	_, err = blakeTree.GetMembershipProof([]byte("foo"))
 	require.Error(t, err)
 }
+
+const blake2b256Empty = "0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8"
+
+func TestBlake2b256Option(t *testing.T) {
+	shaTree := NewMutableTree(dbm.NewMemDB(), 0, true, NewNopLogger())
+	b2Tree := NewMutableTree(dbm.NewMemDB(), 0, true, NewNopLogger(), Blake2b256Option())
+	b2Tree2 := NewMutableTree(dbm.NewMemDB(), 0, true, NewNopLogger(), Blake2b256Option())
+
+	require.Equal(t, blake2b256Empty, hex.EncodeToString(b2Tree.WorkingHash()))
+	require.NotEqual(t, hex.EncodeToString(shaTree.WorkingHash()), hex.EncodeToString(b2Tree.WorkingHash()))
+
+	for _, kv := range [][2][]byte{{[]byte("foo"), []byte("bar")}, {[]byte("baz"), []byte("qux")}} {
+		_, err := shaTree.Set(kv[0], kv[1])
+		require.NoError(t, err)
+		_, err = b2Tree.Set(kv[0], kv[1])
+		require.NoError(t, err)
+		_, err = b2Tree2.Set(kv[0], kv[1])
+		require.NoError(t, err)
+	}
+
+	shaHash, _, err := shaTree.SaveVersion()
+	require.NoError(t, err)
+	b2Hash, _, err := b2Tree.SaveVersion()
+	require.NoError(t, err)
+	b2Hash2, _, err := b2Tree2.SaveVersion()
+	require.NoError(t, err)
+
+	require.NotEqual(t, hex.EncodeToString(shaHash), hex.EncodeToString(b2Hash))
+	require.Equal(t, hex.EncodeToString(b2Hash), hex.EncodeToString(b2Hash2))
+
+	_, err = b2Tree.GetMembershipProof([]byte("foo"))
+	require.Error(t, err)
+}

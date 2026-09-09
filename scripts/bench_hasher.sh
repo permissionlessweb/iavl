@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# SHA-256 vs BLAKE3 benches + ns/op discrepancy table.
+# SHA-256 vs BLAKE3 vs BLAKE2b-256 benches + ns/op discrepancy table.
 # Usage: ./scripts/bench_hasher.sh [count]
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -25,7 +25,7 @@ from collections import defaultdict
 
 path = sys.argv[1]
 pat = re.compile(
-    r"^Benchmark(\S+?)/(sha256|blake3)/(\S+?)(?:-\d+)?\s+\d+\s+([0-9.]+)\s+ns/op"
+    r"^Benchmark(\S+?)/(sha256|blake3|blake2b256)/(\S+?)(?:-\d+)?\s+\d+\s+([0-9.]+)\s+ns/op"
 )
 pkg_re = re.compile(r"^pkg:\s+(\S+)")
 acc = defaultdict(list)
@@ -44,17 +44,20 @@ for line in open(path):
 
 keys = sorted({(p, b, r) for p, b, r, _ in acc})
 print()
-print("hash algo discrepancy (median ns/op; ratio = blake3/sha256; <1 means BLAKE3 faster)")
-print(f"{'bench':<48} {'sha256':>12} {'blake3':>12} {'ratio':>8}")
-print("-" * 84)
+print("hash algo discrepancy (median ns/op; ratio = algo/sha256; <1 means faster than SHA-256)")
+print(f"{'bench':<48} {'sha256':>12} {'blake3':>12} {'b3/sha':>8} {'blake2b256':>12} {'b2/sha':>8}")
+print("-" * 104)
 for pkg, bench, rest in keys:
     sha = sorted(acc.get((pkg, bench, rest, "sha256"), []))
     b3 = sorted(acc.get((pkg, bench, rest, "blake3"), []))
-    if not sha or not b3:
+    b2 = sorted(acc.get((pkg, bench, rest, "blake2b256"), []))
+    if not sha:
         continue
-    med = lambda xs: xs[len(xs) // 2]
-    s, b = med(sha), med(b3)
-    ratio = b / s if s else float("nan")
+    med = lambda xs: xs[len(xs) // 2] if xs else float("nan")
+    s = med(sha)
+    def ratio(xs):
+        m = med(xs)
+        return m / s if xs and s else float("nan")
     name = f"{pkg}/{bench}/{rest}"
-    print(f"{name:<48} {s:12.2f} {b:12.2f} {ratio:8.3f}")
+    print(f"{name:<48} {s:12.2f} {med(b3):12.2f} {ratio(b3):8.3f} {med(b2):12.2f} {ratio(b2):8.3f}")
 PY

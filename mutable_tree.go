@@ -148,7 +148,7 @@ func (tree *MutableTree) Hash() []byte {
 // WorkingHash returns the hash of the current working tree.
 func (tree *MutableTree) WorkingHash() []byte {
 	if tree.root == nil {
-		return emptyDigest(tree.useBlake3())
+		return emptyDigest(tree.hashAlgo())
 	}
 	return tree.root.hashWithCount(tree.WorkingVersion())
 }
@@ -326,7 +326,7 @@ func (tree *MutableTree) recursiveSetLeaf(node *Node, key []byte, value []byte) 
 			nodeKey:       nil,
 			leftNode:      tree.newLeaf(key, value),
 			rightNode:     node,
-			useBlake3:     tree.useBlake3(),
+			algo:          tree.hashAlgo(),
 		}, false, nil
 	case 1: // setKey > leafKey
 		return &Node{
@@ -336,7 +336,7 @@ func (tree *MutableTree) recursiveSetLeaf(node *Node, key []byte, value []byte) 
 			nodeKey:       nil,
 			leftNode:      node,
 			rightNode:     tree.newLeaf(key, value),
-			useBlake3:     tree.useBlake3(),
+			algo:          tree.hashAlgo(),
 		}, false, nil
 	default:
 		return tree.newLeaf(key, value), true, nil

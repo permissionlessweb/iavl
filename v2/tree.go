@@ -65,8 +65,18 @@ type TreeOptions struct {
 	EvictionDepth      int8
 	MetricsProxy       metrics.Proxy
 	// UseBlake3 hashes nodes with BLAKE3-256 instead of SHA-256.
-	// writeHashBytes is unchanged; only the digest is swapped.
 	UseBlake3 bool
+	HashAlgo  HashAlgo
+}
+
+func (opts TreeOptions) hashAlgo() HashAlgo {
+	if opts.HashAlgo != HashSHA256 {
+		return opts.HashAlgo
+	}
+	if opts.UseBlake3 {
+		return HashBLAKE3
+	}
+	return HashSHA256
 }
 
 func DefaultTreeOptions() TreeOptions {
@@ -99,7 +109,7 @@ func NewTree(sql *SqliteDb, pool *NodePool, opts TreeOptions) *Tree {
 		leafSequence:       leafSequenceStart,
 	}
 
-	pool.useBlake3 = opts.UseBlake3
+	pool.algo = opts.hashAlgo()
 
 	tree.sqlWriter.start(ctx)
 	return tree
